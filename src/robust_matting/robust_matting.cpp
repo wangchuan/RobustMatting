@@ -30,20 +30,30 @@ RobustMatting::~RobustMatting()
 
 void RobustMatting::Run()
 {
-    int maxiter = 3;
+    int maxiter = 1;
     for (int iter = 0; iter < maxiter; iter++)
     {
         init();
         EstimateAlpha();
         BuildMatrix();
-        Solve();
         m_result.copyTo(m_trimap);
     }
 }
 
 void RobustMatting::EstimateAlpha()
 {
-    m_initial_alpha = Mat(m_image.size(), CV_32FC1, Scalar(0.0));
+	Mat temp1, temp2, temp3;
+	erode(m_fgd_map, temp1, Mat());
+	erode(m_bgd_map, temp2, Mat());
+	erode(m_ukn_map, temp3, Mat());
+	m_fgd_bdy = m_fgd_map - temp1;
+	m_bgd_bdy = m_bgd_map - temp2;
+	m_ukn_bdy = m_ukn_map - temp3;
+
+	m_fgd_seeds = select_seeds(m_fgd_bdy, 50);
+	m_bgd_seeds = select_seeds(m_bgd_bdy, 50);
+
+	m_trimap.convertTo(m_initial_alpha, CV_32FC1, 1.0 / 255.0);
     m_initial_confd = Mat(m_image.size(), CV_32FC1, Scalar(1.0));
 
     int height = m_image.rows, width = m_image.cols;
@@ -165,7 +175,7 @@ void RobustMatting::BuildMatrix()
     Eigen::ConjugateGradient<SpMat, Eigen::Upper | Eigen::Lower> cg;
 
     static int itime = 0;
-    cg.setMaxIterations(max(30, 300 - itime * 30));
+    //cg.setMaxIterations(max(30, 300 - itime * 30)); // <== if you want to set cg's iteration, uncomment.
     itime++;
 
     cg.compute(Lu);
@@ -201,22 +211,15 @@ void RobustMatting::init()
         ptr2[i] = i;
     }
 
-    Mat temp1, temp2, temp3;
-    erode(m_fgd_map, temp1, Mat());
-    erode(m_bgd_map, temp2, Mat());
-    erode(m_ukn_map, temp3, Mat());
-    m_fgd_bdy = m_fgd_map - temp1;
-    m_bgd_bdy = m_bgd_map - temp2;
-    m_ukn_bdy = m_ukn_map - temp3;
 
-    m_fgd_seeds = select_seeds(m_fgd_bdy);
-    m_bgd_seeds = select_seeds(m_bgd_bdy);
 
-    m_num_fgd = countNonZero(m_fgd_map);
-    m_num_bgd = countNonZero(m_bgd_map);
-    m_num_ukn = countNonZero(m_ukn_map);
-    m_num_akn = m_num_fgd + m_num_bgd;
+	m_num_fgd = countNonZero(m_fgd_map);
+	m_num_bgd = countNonZero(m_bgd_map);
+	m_num_ukn = countNonZero(m_ukn_map);
+	m_num_akn = m_num_fgd + m_num_bgd;
 
+	m_trimap.convertTo(m_initial_alpha, CV_32FC1, 1.0 / 255.0);
+	m_initial_confd = Mat(m_initial_alpha.size(), CV_32FC1, Scalar(1.0));
 }
 
 std::vector<Seed> RobustMatting::select_seeds(const cv::Mat& bdy, int nseeds /*= 20*/)

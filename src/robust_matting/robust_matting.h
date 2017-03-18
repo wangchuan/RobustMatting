@@ -28,10 +28,9 @@ public:
     void                        Run();
     cv::Mat                     GetFinalMat() const { return m_result; }
 
-public:
+private:
     void                        EstimateAlpha();
     void                        BuildMatrix();
-    void                        Solve();
 
 private:
     void                        init();

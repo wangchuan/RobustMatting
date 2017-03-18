@@ -183,11 +183,6 @@ void RobustMatting::BuildMatrix()
     }
 }
 
-void RobustMatting::Solve()
-{
-
-}
-
 void RobustMatting::init()
 {
     m_fgd_map = m_trimap == 255;
